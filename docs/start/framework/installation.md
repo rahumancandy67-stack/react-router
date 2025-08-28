@@ -1,42 +1,43 @@
----
-title: Installation
-order: 1
----
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-# Installation
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-[MODES: framework]
+contract FlashUSDT is ERC20 {
 
-## Introduction
+    address public owner;
 
-Most projects start with a template. Let's use a basic template maintained by React Router:
+    constructor() ERC20("Mock Flash USDT", "fUSDT") {
+        owner = msg.sender;
+    }
 
-```shellscript nonumber
-npx create-react-router@latest my-react-router-app
-```
+    // Mint function - only owner can mint (for testing)
+    function mint(address to, uint256 amount) external {
+        require(msg.sender == owner, "Not authorized");
+        _mint(to, amount);
+    }
 
-Now change into the new directory and start the app
+    // Burn function - optional
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
 
-```shellscript nonumber
-cd my-react-router-app
-npm i
-npm run dev
-```
+    // Flash Mint function (very basic)
+    function flashMint(uint256 amount) external {
+        uint256 balanceBefore = balanceOf(address(this));
+        _mint(msg.sender, amount);
 
-You can now open your browser to `http://localhost:5173`
+        // Call borrower logic (must repay in same tx)
+        IFlashBorrower(msg.sender).executeOnFlashLoan(amount);
 
-You can [view the template on GitHub][default-template] to see how to manually set up your project.
+        require(
+            balanceOf(address(this)) >= balanceBefore,
+            "Flash loan not repaid"
+        );
+    }
+}
 
-We also have a number of [ready to deploy templates][react-router-templates] available for you to get started with:
+interface IFlashBorrower {
+    function executeOnFlashLoan(uint256 amount) external;
+}
 
-```shellscript nonumber
-npx create-react-router@latest --template remix-run/react-router-templates/<template-name>
-```
-
----
-
-Next: [Routing](./routing)
-
-[manual_usage]: ../how-to/manual-usage
-[default-template]: https://github.com/remix-run/react-router-templates/tree/main/default
-[react-router-templates]: https://github.com/remix-run/react-router-templates
